@@ -6,14 +6,13 @@ import copy
 #create data set
 def create_dataset():
     x = np.random.rand(100)
-    x = np.sort(x)
     t = x**3-x**2
 
     #plot to show how the function is supposed to look like
-    #plt.plot(x,t)
+    #plt.scatter(x,t)
     #plt.show()
 
-    return (x,t)
+    return x,t
     
 
 def relu(x):
@@ -29,8 +28,8 @@ class Layer():
         self.n_units = n_units
         self.n_input = n_input
         self.weight_matrix = np.random.rand(self.n_input, self.n_units) * 2 - 1
-        self.biases = np.zeros(n_units)
-
+        #self.biases = np.zeros(n_units)
+        self.biases = np.random.rand(self.n_units) * 0.2 - 0.1
         self.layer_input = None
         self.preactivation = None
         self.layer_activation = None
@@ -73,30 +72,33 @@ class Layer():
         return gradient_input
 
     #derivative of no activation function (identity function) is just 1
+    #the whole derivative of preactivation can be left out
     def backward_step_output(self, gradient_activation):
         
-        de_preact_times_grad_act = np.multiply(self.preactivation, gradient_activation)
+
+
+        gradient_activation = np.asarray([gradient_activation])
         
         input_T = np.transpose(self.layer_input)
 
 
-        gradient_weights = np.matmul(input_T, de_preact_times_grad_act)
-        gradient_bias = de_preact_times_grad_act
+        gradient_weights = np.matmul(input_T, gradient_activation)
+        gradient_bias = gradient_activation
 
         weight_T = np.transpose(self.weight_matrix)
-        preact_times_activation = np.matmul(self.preactivation,np.asarray([gradient_activation]))
-        gradient_input = np.matmul(preact_times_activation, weight_T)
+        gradient_input = np.matmul(np.expand_dims(gradient_activation,axis = 1), weight_T)
         
+
         #update weights and biases
-        self.weight_matrix = self.weight_matrix - self.learning_rate * gradient_weights
+        self.weight_matrix = self.weight_matrix - np.matmul(np.expand_dims(gradient_weights, axis = 1),np.expand_dims(np.asarray([self.learning_rate]),axis = 1))
         self.biases = self.biases - self.learning_rate * gradient_bias
 
         return gradient_input
 
 class MLP():
     def __init__(self) -> None:
-        self.hidden_layer = Layer(0.001,10,1)
-        self.output_layer = Layer(0.001,1,10)
+        self.hidden_layer = Layer(0.01,10,1)
+        self.output_layer = Layer(0.01,1,10)
 
     def forward_step(self, input):
         hidden_layer_output = self.hidden_layer.forward_step(input)
@@ -122,7 +124,7 @@ def training(mlp,x,t):
 
 
 def main():
-    epoch_size = 100
+    epoch_size = 50000
     
     x,t = create_dataset()
     mlp = MLP()
@@ -146,7 +148,7 @@ def main():
         y[i] = mlp.forward_step(np.expand_dims(np.asarray([x[i]]), axis = 0))
 
 
-    plt.plot(x,y)
+    plt.scatter(x,y)
     plt.show()
 
 if __name__ == "__main__":
