@@ -28,15 +28,13 @@ class Layer():
         self.n_units = n_units
         self.n_input = n_input
         self.weight_matrix = np.random.rand(self.n_input, self.n_units) * 2 - 1
-        #self.biases = np.zeros(n_units)
-        self.biases = np.random.rand(self.n_units) * 0.2 - 0.1
+        self.biases = np.zeros(n_units)
         self.layer_input = None
         self.preactivation = None
         self.layer_activation = None
         
 
     def forward_step(self, input):
-
         self.layer_input = input
         self.preactivation = np.matmul(self.layer_input, self.weight_matrix)  + self.biases
         self.layer_activation = relu(self.preactivation)
@@ -45,7 +43,6 @@ class Layer():
         
     #output layer doesnt have activation function
     def forward_step_output(self, input):
-
         self.layer_input = input
         self.preactivation = np.matmul(self.layer_input, self.weight_matrix) + self.biases
         self.layer_activation = copy.deepcopy(self.preactivation)
@@ -74,9 +71,6 @@ class Layer():
     #derivative of no activation function (identity function) is just 1
     #the whole derivative of preactivation can be left out
     def backward_step_output(self, gradient_activation):
-        
-
-
         gradient_activation = np.asarray([gradient_activation])
         
         input_T = np.transpose(self.layer_input)
@@ -96,9 +90,9 @@ class Layer():
         return gradient_input
 
 class MLP():
-    def __init__(self) -> None:
-        self.hidden_layer = Layer(0.01,10,1)
-        self.output_layer = Layer(0.01,1,10)
+    def __init__(self, learning_rate=0.01) -> None:
+        self.hidden_layer = Layer(learning_rate,10,1)
+        self.output_layer = Layer(learning_rate,1,10)
 
     def forward_step(self, input):
         hidden_layer_output = self.hidden_layer.forward_step(input)
@@ -124,10 +118,11 @@ def training(mlp,x,t):
 
 
 def main():
-    epoch_size = 50000
-    
+    epoch_size = 10000
+    learning_rate = 0.01
+
     x,t = create_dataset()
-    mlp = MLP()
+    mlp = MLP(learning_rate)
 
     
     mean_loss = []
@@ -142,7 +137,7 @@ def main():
 
 
 
-    #see if it works
+    #see if it works, plot the predicted y-values
     y = np.ndarray(shape = x.shape)
     for i in range(x.shape[0]):
         y[i] = mlp.forward_step(np.expand_dims(np.asarray([x[i]]), axis = 0))
