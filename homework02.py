@@ -30,8 +30,7 @@ class Layer:
         self.input, self.preactivation, self.activation = None, None, None
 
     def forward_step(self, input):
-        self.input = input
-        self.input = self.input.reshape(self.input.shape[0], 1)
+        self.input = input.reshape(input.shape[0], 1)
         self.preactivation = self.weights.T @ self.input + self.biases
         self.activation = relu(self.preactivation)
         # print('FORWARD STEP:')
@@ -49,7 +48,6 @@ class Layer:
         gradient_preactivation_over_bias = np.ones((self.n_units, 1))
         gradient_preactivation_over_input = self.weights
 
-        # print('\n Backward step:')
         gradient_loss_over_preactivation = gradient_activation_over_preactivation * gradient_loss_over_activation
         gradient_loss_over_weights = gradient_preactivation_over_weights @ gradient_loss_over_preactivation.T
         gradient_loss_over_bias = gradient_preactivation_over_bias.T @ gradient_loss_over_preactivation
@@ -77,7 +75,7 @@ class MLP:
 def main():
     x, t = create_dataset()
     mlp = MLP([Layer(1, 10), Layer(10, 10), Layer(10, 1, output_layer=True)], learning_rate=0.01)
-    epochs = 1000
+    epochs = 100
     losses = []
     for e in range(epochs):
         for (i, j) in zip(x, t):
