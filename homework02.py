@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 def create_dataset():
     x = np.random.rand(100)
     x = x.reshape(x.shape[0], 1)
+    # t = x**3-x**2 + 1
     t = x**2
     # plt.scatter(x, t, s=5)
     # plt.show()
@@ -22,11 +23,10 @@ def d_mse(y, t):
     return y - t
 
 class Layer:
-    def __init__(self, n_inputs, n_units, output_layer=False):
-        self.biases = np.zeros((n_units, 1))
+    def __init__(self, n_inputs, n_units):
+        self.biases = np.ones((n_units, 1))
         self.weights = np.random.rand(n_inputs, n_units)
         self.n_units = n_units
-        self.output_layer = output_layer
         self.input, self.preactivation, self.activation = None, None, None
 
     def forward_step(self, input):
@@ -38,14 +38,13 @@ class Layer:
         # print('Weights: ', self.weights)
         # print('Biases: ', self.biases)
         # print('Preactivation: ', self.preactivation)
-        # print('Activation: ', self.activation)
         return self.activation
     
     def backward_step(self, output, learning_rate):
-        gradient_loss_over_activation = d_mse(output, self.activation) if self.output_layer else output
+        gradient_loss_over_activation = output
         gradient_activation_over_preactivation = d_relu(self.preactivation)
         gradient_preactivation_over_weights = self.input
-        gradient_preactivation_over_bias = np.ones((self.n_units, 1))
+        gradient_preactivation_over_bias = np.zeros((self.n_units, 1))
         gradient_preactivation_over_input = self.weights
 
         gradient_loss_over_preactivation = gradient_activation_over_preactivation * gradient_loss_over_activation
@@ -74,7 +73,7 @@ class MLP:
 
 def main():
     x, t = create_dataset()
-    mlp = MLP([Layer(1, 10), Layer(10, 10), Layer(10, 1, output_layer=True)], learning_rate=0.01)
+    mlp = MLP([Layer(1, 10), Layer(10, 10), Layer(10, 1)], learning_rate=0.001)
     epochs = 100
     losses = []
     for e in range(epochs):
@@ -82,7 +81,7 @@ def main():
             y = mlp.forward_step(i)
             loss = mse(y, j)
             losses.append(loss)
-            mlp.backpropagation(loss)
+            mlp.backpropagation(d_mse(j, y))
         print(f"Epoch: {e + 1}, Loss: {losses[-1]}")
 
     predictions = []
