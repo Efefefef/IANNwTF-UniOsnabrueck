@@ -1,7 +1,7 @@
 #import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
-import copy 
+import random
 
 #create data set
 def create_dataset():
@@ -10,10 +10,20 @@ def create_dataset():
     #plot to show how the function is supposed to look like
     plt.scatter(x,t)
     plt.ylabel("target")
+    plt.title("The function to be approximated")
     plt.show()
 
     return x,t
     
+#shuffles dataset
+def shuffle(x,t):
+    indices = np.arange(x.shape[0])
+    np.random.shuffle(indices)
+
+    x = x[indices]
+    t = t[indices]
+
+    return x,t
 
 def relu(x):
     return np.maximum(0,x)
@@ -29,7 +39,7 @@ class Layer():
         self.n_input = n_input
         self.weight_matrix = np.random.rand(self.n_input, self.n_units) * 2 - 1
         #self.biases = np.zeros(n_units)
-        self.biases = np.random.rand(self.n_units) * 0.2 - 0.1
+        self.biases = np.random.rand(self.n_units) * 0.2 - 0.1 #worked better than with only zeros
         self.layer_input = None
         self.preactivation = None
         self.layer_activation = None
@@ -99,22 +109,23 @@ def main():
     x,t = create_dataset()
     mlp = MLP(learning_rate)
 
-    
+
     mean_loss = []
     for e in range(epoch_size):
-
+        x,t = shuffle(x,t)
         losses = training(mlp,x,t)
         mean_loss.append(np.mean(losses))
 
     #plot the mean loss per epoch
     plt.plot(range(epoch_size),mean_loss)
     plt.ylabel("mean loss")
+    plt.title("Mean loss per Epoch")
 
     plt.show()
 
 
 
-    #see if it works
+    #see if it works, plots the predicted y-values
     y = np.ndarray(shape = x.shape)
     for i in range(x.shape[0]):
         y[i] = mlp.forward_step(np.expand_dims(np.asarray([x[i]]), axis = 0))
@@ -122,6 +133,7 @@ def main():
 
     plt.scatter(x,y)
     plt.ylabel("predicted y-value")
+    plt.title("The learned function")
 
     plt.show()
 
