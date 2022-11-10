@@ -101,8 +101,8 @@ def main():
         # x,t = shuffle(x,t)
         # mean_loss = mlp.train(x, t)
         # mean_loss_per_epoch.append(mean_loss)
-        for (i, j) in zip(x, t):
-            loss = mlp.train(i, j)
+        for i in range(len(x)):
+            loss = mlp.train(x[i], t[i])
             losses.append(loss)
 
         mean_loss_per_epoch.append(np.mean(losses))
