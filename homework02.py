@@ -93,7 +93,7 @@ class MLP:
 def main():
     epoch_size = 100
     x, t = create_dataset()
-    mlp = MLP([Layer(1, 10), Layer(10, 10), Layer(10, 1)], learning_rate=0.001)
+    mlp = MLP([Layer(1, 10), Layer(10, 10), Layer(10, 1)], learning_rate=0.01)
     mean_loss = []
     losses = []
     for e in range(epoch_size):
