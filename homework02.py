@@ -13,17 +13,13 @@ def create_dataset():
     plt.title("The function to be approximated")
     plt.ylabel("target")
     plt.show()
-    return (x, t)
+    return x, t
 
 # Shuffles dataset
 def shuffle(x,t):
-    indices = np.arange(x.shape[0])
-    np.random.shuffle(indices)
-
-    x = x[indices]
-    t = t[indices]
-
-    return x,t
+    np.random.shuffle(x)
+    np.random.shuffle(t)
+    return x, t
 
 # Relu activation function
 def relu(x):
@@ -85,30 +81,29 @@ class MLP:
             output = layer.backward_step(output, self.learning_rate)
 
     def train(self, x, t):
-        y = self.forward_step(x)
-        loss = mse(y, t)
-        self.backpropagation(d_mse(y, t))
-        return loss
+        losses = []
+        for i in range(len(x)):
+            y = self.forward_step(x[i])
+            loss = mse(y, t[i])
+            self.backpropagation(d_mse(y, t[i]))
+            losses.append(loss)
+        return losses
 
 
 def main():
     epoch_size = 100
     x, t = create_dataset()
     mlp = MLP([Layer(1, 10), Layer(10, 10), Layer(10, 1)], learning_rate=0.001)
-    mean_loss_per_epoch = []
+    mean_loss = []
     losses = []
     for e in range(epoch_size):
-        # x,t = shuffle(x,t)
-        # mean_loss = mlp.train(x, t)
-        # mean_loss_per_epoch.append(mean_loss)
-        for i in range(len(x)):
-            loss = mlp.train(x[i], t[i])
-            losses.append(loss)
-
-        mean_loss_per_epoch.append(np.mean(losses))
+        x,t = shuffle(x,t)
+        losses_per_epoch = mlp.train(x, t)
+        losses.append(losses_per_epoch)
+        mean_loss.append(np.mean(losses))
 
     # Plot the mean loss per epoch
-    plt.plot(range(epoch_size), mean_loss_per_epoch)
+    plt.plot(range(epoch_size), mean_loss)
     plt.title("Mean loss per Epoch")
     plt.xlabel("epoch")
     plt.ylabel("mean loss")
