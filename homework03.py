@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow_datasets as tfds
 import tensorflow as tf
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 (train_ds, test_ds), ds_info = tfds.load(
     'mnist',
@@ -10,10 +10,24 @@ import matplotlib as plt
     with_info=True,
 )
 
+
+def visualization(train_losses , train_accuracies , test_losses , test_accuracies):
+    print(train_losses, train_accuracies, test_losses, test_accuracies)
+    plt.figure()
+    line1 , = plt.plot(train_losses , "b-")
+    line2 , = plt.plot(test_losses , "r-") 
+    line3 , = plt.plot(train_accuracies , "b:")
+    line4 , = plt.plot(test_accuracies , "r:") 
+    plt.xlabel("Training steps")
+    plt.ylabel("Loss/Accuracy")
+    plt.legend((line1, line2, line3, line4), ("training loss", "test loss", "train accuracy", "test accuracy"))
+    plt.show()
+
+
 def prepare_mnist_data(mnist_data):
     mnist_data = mnist_data.map(lambda image, target: (tf.cast(image, tf.float32) / 128. - 1, target))
     mnist_data = mnist_data.map(lambda image, target: (tf.reshape(image, (-1,)), target))
-    mnist_data = mnist_data.map(lambda image, target: (tf.one_hot(target, 10), image))
+    mnist_data = mnist_data.map(lambda image, target: (image, tf.one_hot(target, 10)))
     mnist_data.cache()
     mnist_data = mnist_data.shuffle(1000)
     mnist_data = mnist_data.batch(32)
@@ -26,14 +40,14 @@ class MyModel(tf.keras.Model):
         super(MyModel, self).__init__()
         self.dense1 = tf.keras.layers.Dense(256, activation=tf.nn.relu)
         self.dense2 = tf.keras.layers.Dense(256, activation=tf.nn.relu)
-        self.out = tf.keras.layeres.Dense(10, activation=tf.nn.softmax)
+        self.out = tf.keras.layers.Dense(10, activation=tf.nn.softmax)
 
-        @tf.function
-        def call(self, inputs):
-            x = self.dense1(inputs)
-            x = self.dense2(x)
-            x = self.out(x)
-            return x
+    @tf.function
+    def call(self, inputs):
+        x = self.dense1(inputs)
+        x = self.dense2(x)
+        x = self.out(x)
+        return x
 
 def train_step(model, input, target, loss_function, optimizer):
     with tf.GradientTape() as tape:
@@ -41,7 +55,7 @@ def train_step(model, input, target, loss_function, optimizer):
         loss = loss_function(target, predictions)
     gradients = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-    return loss
+    return loss, predictions
 
 def test(model, test_ds, target, loss_function):
     test_accuracy_aggregator = []
@@ -59,14 +73,18 @@ def test(model, test_ds, target, loss_function):
     return test_loss, test_accuracy
 
 def train(model, train_ds, test_ds, epochs, loss_function, optimizer, train_losses, train_accuracies, test_losses, test_accuracies):
+    test_accuracy_aggregator = []
     for epoch in range(epochs):
         losses = []
         for image, target in train_ds:
-            loss = train_step(model, image, target, loss_function, optimizer)
+            loss, predictions = train_step(model, image, target, loss_function, optimizer)
             losses.append(loss)
-        train_losses.append(tf.reduce_mean(losses))
+            sample_test_accuracy = np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1))
 
-    test(test_ds, test_losses, test_accuracies)
+        train_losses.append(tf.reduce_mean(losses))
+        test_accuracy_aggregator.append(np.mean(sample_test_accuracy))
+
+    test_losses, test_accuracies = test(test_ds, test_losses, test_accuracies, loss_function)
     return train_losses, train_accuracies, test_losses, test_accuracies
 
 
@@ -78,16 +96,16 @@ model = MyModel()
 train_losses , train_accuracies , test_losses , test_accuracies = [], [], [], []
 
 train_losses, train_accuracies, test_losses ,test_accuracies = train(
-    model, prepare_mnist_data(train_ds), prepare_mnist_data(test_ds), num_epochs, tf.keras.losses.CategoricalCrossentropy(), tf.keras.optimizers.SGD(learning_rate)
+    model = model, 
+    train_ds= prepare_mnist_data(train_ds), 
+    test_ds= prepare_mnist_data(test_ds), 
+    epochs= num_epochs, 
+    loss_function= tf.keras.losses.CategoricalCrossentropy(), 
+    optimizer = tf.keras.optimizers.SGD(learning_rate),
+    train_losses=train_losses,
+    train_accuracies=train_accuracies,
+    test_losses=test_losses,
+    test_accuracies=test_accuracies
 )
 
-def visualization(train_losses , train_accuracies , test_losses , test_accuracies):
-    plt.figure()
-    line1 , = plt.plot(train_losses , "b-")
-    line2 , = plt.plot(test_losses , "r-") 
-    line3 , = plt.plot(train_accuracies , "b:")
-    line4 , = plt.plot(test_accuracies , "r:") 
-    plt.xlabel("Training steps")
-    plt.ylabel("Loss/Accuracy")
-    plt.legend((line1, line2, line3, line4), ("training loss", "test loss", "train accuracy", "test accuracy"))
-    plt.show()
+visualization(train_losses, train_accuracies, test_losses, test_accuracies)
