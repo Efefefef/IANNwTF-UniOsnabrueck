@@ -30,8 +30,8 @@ class MyModel(tf.keras.Model):
     # Define the layers of the model
     def __init__(self):
         super(MyModel, self).__init__()
-        self.dense1 = tf.keras.layers.Dense(256, activation=tf.nn.relu)
-        self.dense2 = tf.keras.layers.Dense(256, activation=tf.nn.relu)
+        self.dense1 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
+        self.dense2 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
         self.out = tf.keras.layers.Dense(10, activation=tf.nn.softmax)
 
     # Forward pass
@@ -80,8 +80,8 @@ def train(model, train_ds, test_ds, epochs, loss_function, optimizer, train_loss
     test_losses.append(loss)      
     test_accuracies.append(accuracy)
 
-    print("Pretraining, Loss: {}, Accuracy: {}".format(train_losses[-1], train_accuracies[-1])) 
-    print("Pretraining, Loss: {}, Accuracy: {}".format(test_losses[-1], test_accuracies[-1])) 
+    print("Pretraining, Loss: {}, Accuracy: {}, (Train)".format(train_losses[-1], train_accuracies[-1])) 
+    print("Pretraining, Loss: {}, Accuracy: {}, (Test)".format(test_losses[-1], test_accuracies[-1])) 
     
     # Train the model
     for epoch in range(epochs):
@@ -101,8 +101,8 @@ def train(model, train_ds, test_ds, epochs, loss_function, optimizer, train_loss
         test_losses.append(loss)         
         test_accuracies.append(accuracy)
 
-        print("Epoch: {}, Loss: {}, Accuracy: {}".format(epoch + 1, train_losses[-1], train_accuracies[-1])) 
-        print("Epoch: {}, Loss: {}, Accuracy: {}".format(epoch + 1, test_losses[-1], test_accuracies[-1])) 
+        print("Epoch: {}, Loss: {}, Accuracy: {}, (Train)".format(epoch + 1, train_losses[-1], train_accuracies[-1])) 
+        print("Epoch: {}, Loss: {}, Accuracy: {}, (Test)".format(epoch + 1, test_losses[-1], test_accuracies[-1])) 
 
     return train_losses, train_accuracies, test_losses, test_accuracies
 
