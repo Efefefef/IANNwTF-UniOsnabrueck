@@ -15,7 +15,7 @@ def visualization(train_losses , train_accuracies , test_losses , test_accuracie
     plt.legend((line1, line2, line3, line4), ("training loss", "test loss", "train accuracy", "test accuracy"))
     plt.show()
 
-
+# Prepare the data
 def prepare_mnist_data(mnist_data):
     mnist_data = mnist_data.map(lambda image, target: (tf.cast(image, tf.float32) / 128. - 1, target))
     mnist_data = mnist_data.map(lambda image, target: (tf.reshape(image, (-1,)), target))
@@ -24,17 +24,17 @@ def prepare_mnist_data(mnist_data):
     mnist_data = mnist_data.shuffle(1000)
     mnist_data = mnist_data.batch(32)
     mnist_data = mnist_data.prefetch(20)
-
     return mnist_data
 
 class MyModel(tf.keras.Model):
-
+    # Define the layers of the model
     def __init__(self):
         super(MyModel, self).__init__()
         self.dense1 = tf.keras.layers.Dense(256, activation=tf.nn.relu)
         self.dense2 = tf.keras.layers.Dense(256, activation=tf.nn.relu)
         self.out = tf.keras.layers.Dense(10, activation=tf.nn.softmax)
 
+    # Forward pass
     @tf.function
     def call(self, inputs):
         x = self.dense1(inputs)
@@ -42,6 +42,7 @@ class MyModel(tf.keras.Model):
         x = self.out(x)
         return x
 
+# Define the training step
 def train_step(model, input, target, loss_function, optimizer):
     with tf.GradientTape() as tape:
         predictions = model(input)
@@ -50,58 +51,56 @@ def train_step(model, input, target, loss_function, optimizer):
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
     return loss, predictions
 
+# Define the test step
 def test_step(model, image, target, loss_function):
     predictions = model(image)
     loss = loss_function(target, predictions)
-
     return loss, predictions
 
-def train(model, train_ds, test_ds, epochs, loss_function, optimizer, train_losses, train_accuracies, test_losses, test_accuracies):
-
+# Test the model
+def test(model, test_ds, loss_function):
     losses = []
-    test_accuracy_aggregator = []
-    train_accuracy_aggregator = []
-
+    accuracy_aggregator = []
     for image, target in test_ds:
         loss, predictions = test_step(model, image, target, loss_function)
         losses.append(loss)
-        test_accuracy_aggregator.append(np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1)))
-    test_losses.append(tf.reduce_mean(losses))         
-    test_accuracies.append(tf.reduce_mean(test_accuracy_aggregator))
+        accuracy_aggregator.append(np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1)))
+    return tf.reduce_mean(losses), tf.reduce_mean(accuracy_aggregator)
 
-    for image, target in train_ds:
-        loss, predictions = test_step(model, image, target, loss_function)
-        losses.append(loss)
-        train_accuracy_aggregator.append(np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1)))
-    train_losses.append(tf.reduce_mean(losses))         
-    train_accuracies.append(tf.reduce_mean(train_accuracy_aggregator))
+# Define the complete training function
+def train(model, train_ds, test_ds, epochs, loss_function, optimizer, train_losses, train_accuracies, test_losses, test_accuracies):
+
+    # Estimate the loss and accuracy on the train set before training
+    loss, accuracy = test(model, train_ds, loss_function)
+    train_losses.append(loss)       
+    train_accuracies.append(accuracy)
+
+    # Estimate the loss and accuracy on the test set before training
+    loss, accuracy = test(model, test_ds, loss_function)
+    test_losses.append(loss)      
+    test_accuracies.append(accuracy)
 
     print("Pretraining, Loss: {}, Accuracy: {}".format(train_losses[-1], train_accuracies[-1])) 
     print("Pretraining, Loss: {}, Accuracy: {}".format(test_losses[-1], test_accuracies[-1])) 
     
-    #perform testing
+    # Train the model
     for epoch in range(epochs):
         train_accuracy_aggregator = []
-        test_accuracy_aggregator = []
-        losses = []
-        for image, target in test_ds:
-            loss, predictions = test_step(model, image, target, loss_function)
-            losses.append(loss)
-            test_accuracy_aggregator.append(np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1)))
-
-        test_losses.append(tf.reduce_mean(losses))         
-        test_accuracies.append(tf.reduce_mean(test_accuracy_aggregator))
-
-        #perform training
         losses = []
         for image, target in train_ds:
             loss, predictions = train_step(model, image, target, loss_function, optimizer)
             losses.append(loss)
             train_accuracy_aggregator.append(np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1)))
-            
+
+        # Estimate the loss and accuracy on the train set after training    
         train_losses.append(tf.reduce_mean(losses))
         train_accuracies.append(tf.reduce_mean(train_accuracy_aggregator))
-       
+
+        # Estimate the loss and accuracy on the test set after each epoch
+        loss, accuracy = test(model, train_ds, loss_function)
+        test_losses.append(loss)         
+        test_accuracies.append(accuracy)
+
         print("Epoch: {}, Loss: {}, Accuracy: {}".format(epoch + 1, train_losses[-1], train_accuracies[-1])) 
         print("Epoch: {}, Loss: {}, Accuracy: {}".format(epoch + 1, test_losses[-1], test_accuracies[-1])) 
 
