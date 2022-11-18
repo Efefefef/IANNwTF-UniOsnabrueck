@@ -30,8 +30,8 @@ class MyModel(tf.keras.Model):
     # Define the layers of the model
     def __init__(self):
         super(MyModel, self).__init__()
-        self.dense1 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
-        self.dense2 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
+        self.dense1 = tf.keras.layers.Dense(256, activation=tf.nn.relu)
+        self.dense2 = tf.keras.layers.Dense(256, activation=tf.nn.relu)
         self.out = tf.keras.layers.Dense(10, activation=tf.nn.softmax)
 
     # Forward pass
