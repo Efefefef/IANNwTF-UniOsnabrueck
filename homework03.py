@@ -6,14 +6,11 @@ import matplotlib.pyplot as plt
 
 def visualization(train_losses , train_accuracies , test_losses , test_accuracies):
     plt.figure()
-    #testing takes place every 1875th (no of samples/batch size = 60000/32) steps. So we plot them there. 
-    #we test once more than we train, so we need one data boint more
-    xtest = np.arange(0,len(train_losses)+1875,1875)
     line1 , = plt.plot(train_losses , "b-")
-    line2 , = plt.plot(xtest, test_losses , "r-") 
+    line2 , = plt.plot(test_losses , "r-") 
     line3 , = plt.plot(train_accuracies , "b:")
-    line4 , = plt.plot(xtest, test_accuracies , "r:") 
-    plt.xlabel("Training steps")
+    line4 , = plt.plot(test_accuracies , "r:") 
+    plt.xlabel("Epochs")
     plt.ylabel("Loss/Accuracy")
     plt.legend((line1, line2, line3, line4), ("training loss", "test loss", "train accuracy", "test accuracy"))
     plt.show()
@@ -53,56 +50,60 @@ def train_step(model, input, target, loss_function, optimizer):
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
     return loss, predictions
 
-def test(model, image, target, loss_function):
-    
+def test_step(model, image, target, loss_function):
     predictions = model(image)
     loss = loss_function(target, predictions)
 
     return loss, predictions
 
 def train(model, train_ds, test_ds, epochs, loss_function, optimizer, train_losses, train_accuracies, test_losses, test_accuracies):
+
+    losses = []
+    test_accuracy_aggregator = []
+    train_accuracy_aggregator = []
+
+    for image, target in test_ds:
+        loss, predictions = test_step(model, image, target, loss_function)
+        losses.append(loss)
+        test_accuracy_aggregator.append(np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1)))
+    test_losses.append(tf.reduce_mean(losses))         
+    test_accuracies.append(tf.reduce_mean(test_accuracy_aggregator))
+
+    for image, target in train_ds:
+        loss, predictions = test_step(model, image, target, loss_function)
+        losses.append(loss)
+        train_accuracy_aggregator.append(np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1)))
+    train_losses.append(tf.reduce_mean(losses))         
+    train_accuracies.append(tf.reduce_mean(train_accuracy_aggregator))
+
+    print("Pretraining, Loss: {}, Accuracy: {}".format(train_losses[-1], train_accuracies[-1])) 
+    print("Pretraining, Loss: {}, Accuracy: {}".format(test_losses[-1], test_accuracies[-1])) 
     
+    #perform testing
     for epoch in range(epochs):
         train_accuracy_aggregator = []
         test_accuracy_aggregator = []
-        #perform a testing step
-        #we do one testing step before training to see how good the network is by chance
         losses = []
         for image, target in test_ds:
-            loss, test_predictions = test(model, image, target, loss_function)
+            loss, predictions = test_step(model, image, target, loss_function)
             losses.append(loss)
-            
-            sample_test_accuracy = np.mean(np.argmax(test_predictions, axis=1) == np.argmax(target, axis=1))
-            test_accuracy_aggregator.append(sample_test_accuracy)
-            
+            test_accuracy_aggregator.append(np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1)))
+
+        test_losses.append(tf.reduce_mean(losses))         
+        test_accuracies.append(tf.reduce_mean(test_accuracy_aggregator))
+
         #perform training
         losses = []
         for image, target in train_ds:
             loss, predictions = train_step(model, image, target, loss_function, optimizer)
             losses.append(loss)
-            sample_train_accuracy = np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1))
-            train_losses.append(tf.reduce_mean(losses))
-            train_accuracy_aggregator.append(np.mean(sample_train_accuracy))
-            train_accuracies.append(tf.reduce_mean(train_accuracy_aggregator))
-       
-        
-        #only store mean of loss and accuracy for test steps
-        test_losses.append(tf.reduce_mean(losses))         
-        test_accuracies.append(tf.reduce_mean(test_accuracy_aggregator))
-
-
-    #perform one extra test step because we can
-    losses = []
-    test_accuracy_aggregator = []
-
-    for image, target in test_ds:
-        loss, test_predictions = test(model, image, target, loss_function)
-        losses.append(loss)
+            train_accuracy_aggregator.append(np.mean(np.argmax(predictions, axis=1) == np.argmax(target, axis=1)))
             
-        sample_test_accuracy = np.mean(np.argmax(test_predictions, axis=1) == np.argmax(target, axis=1))
-        test_accuracy_aggregator.append(sample_test_accuracy)
-    test_losses.append(tf.reduce_mean(losses))         
-    test_accuracies.append(tf.reduce_mean(test_accuracy_aggregator))
+        train_losses.append(tf.reduce_mean(losses))
+        train_accuracies.append(tf.reduce_mean(train_accuracy_aggregator))
+       
+        print("Epoch: {}, Loss: {}, Accuracy: {}".format(epoch + 1, train_losses[-1], train_accuracies[-1])) 
+        print("Epoch: {}, Loss: {}, Accuracy: {}".format(epoch + 1, test_losses[-1], test_accuracies[-1])) 
 
     return train_losses, train_accuracies, test_losses, test_accuracies
 
