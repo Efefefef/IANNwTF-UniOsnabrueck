@@ -39,7 +39,7 @@ class FFN(tf.keras.Model):
         y = self.dense1(y)
         y = self.dense2(y)
 
-        z = self.out(x.concatenate(y))
+        z = self.out(tf.concat([x, y], axis=1))
         return z
 
     def reset_metrics(self):
