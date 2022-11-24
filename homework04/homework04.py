@@ -58,7 +58,6 @@ class FFN(tf.keras.Model):
 
         self.metrics[0].update_state(target, prediction)
         self.metrics[1].update_state(loss)
-        return {m.name: m.result() for m in self.metrics}
 
     def test_step(self, data):
         img1, img2, target = data
@@ -76,8 +75,8 @@ def training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_s
             model.train_step(data)
 
         with train_summary_writer.as_default():
-            tf.summary.scalar('accuracy', model.metrics[0].result(), step=epoch)
-            tf.summary.scalar('loss', model.metrics[1].result(), step=epoch)
+            tf.summary.scalar(model.metrics[0].name, model.metrics[0].result(), step=epoch)
+            tf.summary.scalar(model.metrics[1].name, model.metrics[1].result(), step=epoch)
 
         model.reset_metrics()
         
@@ -85,8 +84,8 @@ def training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_s
             model.test_step(data)
 
         with test_summary_writer.as_default():
-            tf.summary.scalar('accuracy', model.metrics[0].result(), step=epoch)
-            tf.summary.scalar('loss', model.metrics[1].result(), step=epoch)
+            tf.summary.scalar(model.metrics[0].name, model.metrics[0].result(), step=epoch)
+            tf.summary.scalar(model.metrics[1].name, model.metrics[1].result(), step=epoch)
 
         print("Epoch: {}, Loss: {}, Accuracy: {}".format(epoch, model.metrics[1].result(), model.metrics[0].result()))
 
