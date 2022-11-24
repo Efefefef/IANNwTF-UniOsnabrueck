@@ -58,7 +58,7 @@ class MyModel(tf.keras.Model):
         gradients = tape.gradient(loss, self.trainable_variables)
         self.metrics[0].update_state(target, prediction)
         self.metrics[1].update_state(loss)
-        return {"accuracy": self.metrics[0], "loss": self.metrics[1]}
+        return {"accuracy": self.metrics[0].result(), "loss": self.metrics[1].result()}
 
     def test_step(data):
         img1, img2, target = data
