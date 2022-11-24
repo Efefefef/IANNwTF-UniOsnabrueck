@@ -22,7 +22,7 @@ class FFN(tf.keras.Model):
         self.metrics_list = [
             tf.keras.metrics.BinaryAccuracy(name="accuracy"),
             tf.keras.metrics.Mean(name="loss")
-            ]
+        ]
         self.optimizer = optimiser
         self.loss_function = tf.keras.losses.BinaryCrossentropy()
         self.dense1 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
@@ -94,11 +94,12 @@ def training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_s
 
 def train(subtask, optimiser):
     save_path = f"models/{subtask}_{optimiser}"
-    train_log_path = f"logs/"
-    test_log_path = f"logs/"
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    train_log_path = f"logs/{subtask}/{current_time}/train"
+    test_log_path = f"logs/{subtask}/{current_time}/test"
     train_summary_writer = tf.summary.create_file_writer(train_log_path)
     test_summary_writer = tf.summary.create_file_writer(test_log_path)
+
     epochs = 10
 
     train_ds, test_ds = tfds.load('mnist', split=['train', 'test'], as_supervised=True)
