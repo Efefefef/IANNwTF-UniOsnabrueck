@@ -7,9 +7,13 @@ def preprocess(data, task):
     batch_size = 32
     data = data.map(lambda image, target: (tf.cast(image, tf.float32) / 128. - 1, target))
     data = data.map(lambda image, target: (tf.reshape(image, (-1,)), target))
-    data = data.map(lambda image, target: (image, tf.one_hot(target, 10)))
     zipped_ds = tf.data.Dataset.zip((data.shuffle(2000), data.shuffle(2000)))
-    zipped_ds = zipped_ds.map(lambda x, y: (x[0], y[0], tf.cast(x[1]==y[1], tf.int32)))
+    if task == 'larger_than_five':
+        zipped_ds = zipped_ds.map(lambda x, y: (x[0], y[0], tf.cast((x[1]+y[1] > 4), tf.int32)))
+    else:
+        zipped_ds = zipped_ds.map(lambda x, y: (x[0], y[0], tf.cast((x[1]-y[1]), tf.int32)))
+
+    print(zipped_ds)
     zipped_ds.cache()
     zipped_ds = zipped_ds.shuffle(2000)
     zipped_ds = zipped_ds.batch(batch_size)
