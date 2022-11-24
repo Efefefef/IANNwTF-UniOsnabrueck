@@ -16,11 +16,13 @@ def preprocess(data, task):
     zipped_ds = zipped_ds.prefetch(tf.data.AUTOTUNE)
     return zipped_ds
 
-class MyModel(tf.keras.Model):
+class FFN(tf.keras.Model):
     def __init__(self, optimiser):
-        super(MyModel, self).__init__()
-        self.metrics_list = [tf.keras.metrics.BinaryAccuracy(),
-                        tf.keras.metrics.Mean(name="loss")]
+        super().__init__()
+        self.metrics_list = [
+            tf.keras.metrics.BinaryAccuracy(name="accuracy"),
+            tf.keras.metrics.Mean(name="loss")
+            ]
         self.optimizer = optimiser
         self.loss_function = tf.keras.losses.BinaryCrossentropy()
         self.dense1 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
@@ -40,27 +42,25 @@ class MyModel(tf.keras.Model):
         z = self.out(x.concatenate(y))
         return z
 
-    @property
-    def metrics(self):
-        return self.metrics_list
-
     def reset_metrics(self):
         for metric in self.metrics:
             metric.reset_states()
             
-    def train_step(data):
+    def train_step(self, data):
         img1, img2, target = data
 
         with tf.GradientTape() as tape:
             prediction = self((img1, img2), training=True)
-            loss = self.loss_function(target, prediction)
+            loss = self.loss_function(target, prediction) 
 
         gradients = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+
         self.metrics[0].update_state(target, prediction)
         self.metrics[1].update_state(loss)
-        return {"accuracy": self.metrics[0].result(), "loss": self.metrics[1].result()}
+        return {m.name: m.result() for m in self.metrics}
 
-    def test_step(data):
+    def test_step(self, data):
         img1, img2, target = data
         prediction = self((img1, img2), training=False)
         loss = self.loss_function(target, prediction)
@@ -105,7 +105,7 @@ def train(subtask, optimiser):
     train_ds = preprocess(train_ds, subtask)
     test_ds = preprocess(test_ds, subtask)
 
-    model = MyModel(optimiser)
+    model = FFN(optimiser)
 
     training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_summary_writer, save_path)
 
