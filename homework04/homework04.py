@@ -1,6 +1,7 @@
 import datetime
 import tensorflow_datasets as tfds 
 import tensorflow as tf
+from tqdm import tqdm
 
 # PREPARE THE DATA
 def preprocess(data, task):
@@ -28,9 +29,8 @@ class FFN(tf.keras.Model):
         self.task = task
         self.optimizer = optimiser
         self.flatten = tf.keras.layers.Flatten()
-        self.dense1 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
-        self.dense2 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
-        self.dense3 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
+        self.dense1 = tf.keras.layers.Dense(128, activation=tf.nn.relu)
+        self.dense2 = tf.keras.layers.Dense(128, activation=tf.nn.relu)
 
         # SPECIFIC CONSTRUCTOR FOR SUBTASK 1 (LARGER_THAN_FIVE)
         if self.task == 'larger_than_five':
@@ -63,8 +63,7 @@ class FFN(tf.keras.Model):
         y = self.dense1(y)
         y = self.dense2(y)
 
-        z = self.dense3(tf.concat([x, y], axis=1))
-        z = self.out(z)
+        z = self.out(tf.concat([x, y], axis=1))
         return z
 
     # RESET ALL METRICS
@@ -85,7 +84,6 @@ class FFN(tf.keras.Model):
 
         self.metrics[0].update_state(target, prediction)
         self.metrics[1].update_state(loss)
-        return {m.name: m.result() for m in self.metrics_list}
     
     # TEST STEP METHOD        
     def test_step(self, data):
@@ -100,13 +98,14 @@ def training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_s
     for epoch in range(epochs):
         model.reset_metrics()
 
-        for data in train_ds:
+        for data in tqdm(train_ds, position=0, leave=True):
             model.train_step(data)
 
         with train_summary_writer.as_default():
             tf.summary.scalar(model.metrics[0].name, model.metrics[0].result(), step=epoch)
             tf.summary.scalar(model.metrics[1].name, model.metrics[1].result(), step=epoch)
-
+        print("Epoch: ", epoch)
+        print("Loss: ", model.metrics[1].result().numpy(), "Accuracy: ", model.metrics[0].result().numpy(), "(Train)")
         model.reset_metrics()
         
         for data in test_ds:
@@ -116,7 +115,7 @@ def training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_s
             tf.summary.scalar(model.metrics[0].name, model.metrics[0].result(), step=epoch)
             tf.summary.scalar(model.metrics[1].name, model.metrics[1].result(), step=epoch)
 
-        print("Epoch: {}, Loss: {}, Accuracy: {}".format(epoch, model.metrics[1].result(), model.metrics[0].result()))
+        print("Loss: ", model.metrics[1].result().numpy(), "Accuracy: ", model.metrics[0].result().numpy(), "(Test)")
 
     model.save_weights(save_path)
 
@@ -138,28 +137,30 @@ def train(subtask, optimiser):
     model = FFN(optimiser, subtask)
 
     training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_summary_writer, save_path)
+    
 
 # EXPERIMENTS
+learning_rate = 0.01
 
-learning_rate = 0.001
+# 1) Adam Optimizer
+optimiser1 = tf.keras.optimizers.Adam()
 
-# 1) SGD Optimizer (without momentum)
+# 2) SGD Optimizer (without momentum)
 # momentum = 0.0
-# optimiser1 = tf.keras.optimizers.experimental.SGD(learning_rate=learning_rate, momentum=momentum)
+# optimiser1 = tf.keras.optimizers.SGD(learning_rate=learning_rate, momentum=momentum)
 
-# 2) Adam Optimizer
-optimiser2 = tf.keras.optimizers.Adam()
+
 
 # BONUS POINT
 # 3) SGD (with momentum =0.9)
 # momentum = 0.9
-# optimiser3 = tf.keras.optimizers.experimental.SGD(learning_rate= learning_rate, momentum=momentum)
+# optimiser3 = tf.keras.optimizers.SGD(learning_rate=learning_rate, momentum=momentum)
 
 #4) RMSProp
-# optimiser4 = tf.keras.optimizers.experimental.RMSprop(learning_rate=learning_rate)
+# optimiser4 = tf.keras.optimizers.RMSprop(learning_rate=learning_rate)
 
 #5) AdaGrad
-# optimiser5 = tf.keras.optimizers.experimental.Adagrad(learning_rate=learning_rate)
+# optimiser5 = tf.keras.optimizers.Adagrad(learning_rate=learning_rate)
 
 #train('larger_than_five', optimiser1)
-train('subtraction', optimiser2)
+train('subtraction', optimiser1)
