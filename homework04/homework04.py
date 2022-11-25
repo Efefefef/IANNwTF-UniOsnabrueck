@@ -12,6 +12,7 @@ def preprocess(data, task):
         zipped_ds = zipped_ds.map(lambda x, y: (x[0], y[0], tf.cast((x[1]+y[1] > 4), tf.int32)))
     else:
         zipped_ds = zipped_ds.map(lambda x, y: (x[0], y[0], tf.cast((x[1]-y[1]), tf.int32)))
+        zipped_ds = zipped_ds.map(lambda x, y, z: (x,y, tf.one_hot(z, 19)))
 
     print(zipped_ds)
     zipped_ds.cache()
@@ -21,17 +22,31 @@ def preprocess(data, task):
     return zipped_ds
 
 class FFN(tf.keras.Model):
-    def __init__(self, optimiser):
+    def __init__(self, optimiser, task):
         super().__init__()
-        self.metrics_list = [
-            tf.keras.metrics.BinaryAccuracy(name="accuracy"),
-            tf.keras.metrics.Mean(name="loss")
-        ]
+
         self.optimizer = optimiser
-        self.loss_function = tf.keras.losses.BinaryCrossentropy()
         self.dense1 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
         self.dense2 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
-        self.out = tf.keras.layers.Dense(1, activation=tf.nn.sigmoid)
+
+        if task == 'larger_than_five':
+            self.metrics_list = [
+                tf.keras.metrics.BinaryAccuracy(name="accuracy"),
+                tf.keras.metrics.Mean(name="loss")
+            ]
+            self.loss_function = tf.keras.losses.BinaryCrossentropy()
+            self.out = tf.keras.layers.Dense(1, activation=tf.nn.sigmoid)
+
+        else:
+            self.metrics_list = [
+                tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
+                tf.keras.metrics.Mean(name="loss")
+            ]
+            self.loss_function = tf.keras.losses.CategoricalCrossentropy()
+            self.out = tf.keras.layers.Dense(19, activation=tf.nn.softmax)
+        
+        
+        
 
     @tf.function
     def __call__(self, images, training=False):
@@ -114,3 +129,4 @@ def train(subtask, optimiser):
     training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_summary_writer, save_path)
 
 train('larger_than_five', tf.keras.optimizers.Adam())
+train('x-y', tf.keras.optimizers.Adam())
