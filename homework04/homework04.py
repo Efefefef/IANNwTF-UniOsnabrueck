@@ -14,7 +14,6 @@ def preprocess(data, task):
         zipped_ds = zipped_ds.map(lambda x, y: (x[0], y[0], tf.cast((x[1]-y[1]), tf.int32)))
         zipped_ds = zipped_ds.map(lambda x, y, z: (x,y, tf.one_hot(z, 19)))
 
-    print(zipped_ds)
     zipped_ds.cache()
     zipped_ds = zipped_ds.shuffle(2000)
     zipped_ds = zipped_ds.batch(batch_size)
@@ -24,12 +23,12 @@ def preprocess(data, task):
 class FFN(tf.keras.Model):
     def __init__(self, optimiser, task):
         super().__init__()
-
+        self.task = task
         self.optimizer = optimiser
         self.dense1 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
         self.dense2 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
 
-        if task == 'larger_than_five':
+        if self.task == 'larger_than_five':
             self.metrics_list = [
                 tf.keras.metrics.BinaryAccuracy(name="accuracy"),
                 tf.keras.metrics.Mean(name="loss")
@@ -43,6 +42,8 @@ class FFN(tf.keras.Model):
                 tf.keras.metrics.Mean(name="loss")
             ]
             self.loss_function = tf.keras.losses.CategoricalCrossentropy()
+
+            self.dense3 = tf.keras.layers.Dense(16, activation=tf.nn.relu)
             self.out = tf.keras.layers.Dense(19, activation=tf.nn.softmax)
         
         
@@ -57,6 +58,10 @@ class FFN(tf.keras.Model):
 
         y = self.dense1(y)
         y = self.dense2(y)
+
+        if self.task == "x-y":
+            x = self.dense3(x)
+            y = self.dense3(y)
 
         z = self.out(tf.concat([x, y], axis=1))
         return z
@@ -124,9 +129,9 @@ def train(subtask, optimiser):
     train_ds = preprocess(train_ds, subtask)
     test_ds = preprocess(test_ds, subtask)
 
-    model = FFN(optimiser)
+    model = FFN(optimiser, subtask)
 
     training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_summary_writer, save_path)
 
-train('larger_than_five', tf.keras.optimizers.Adam())
+#train('larger_than_five', tf.keras.optimizers.Adam())
 train('x-y', tf.keras.optimizers.Adam())
