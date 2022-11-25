@@ -11,7 +11,7 @@ def preprocess(data, task):
     if task == 'larger_than_five':
         zipped_ds = zipped_ds.map(lambda x, y: (x[0], y[0], tf.cast((x[1]+y[1] > 4), tf.int32)))
         #  n-output=1, do not need one_hot
-    else: # task == 'x-y'
+    elif task == 'subtraction':
         zipped_ds = zipped_ds.map(lambda x, y: (x[0], y[0], tf.cast((x[1]-y[1]), tf.int32)))
         zipped_ds = zipped_ds.map(lambda x, y, z: (x,y, tf.one_hot(z, 19)))
         # n-output=19, ranging from -9 to 9
