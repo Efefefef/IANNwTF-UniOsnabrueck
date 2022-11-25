@@ -2,7 +2,7 @@ import datetime
 import tensorflow_datasets as tfds 
 import tensorflow as tf
 
-# Prepare the data
+# PREPARE THE DATA
 def preprocess(data, task):
     batch_size = 32
     data = data.map(lambda image, target: (tf.cast(image, tf.float32) / 128. - 1, target))
@@ -10,9 +10,11 @@ def preprocess(data, task):
     zipped_ds = tf.data.Dataset.zip((data.shuffle(2000), data.shuffle(2000)))
     if task == 'larger_than_five':
         zipped_ds = zipped_ds.map(lambda x, y: (x[0], y[0], tf.cast((x[1]+y[1] > 4), tf.int32)))
-    else:
+        #  n-output=1, do not need one_hot
+    else: # task == 'x-y'
         zipped_ds = zipped_ds.map(lambda x, y: (x[0], y[0], tf.cast((x[1]-y[1]), tf.int32)))
         zipped_ds = zipped_ds.map(lambda x, y, z: (x,y, tf.one_hot(z, 19)))
+        # n-output=19, ranging from -9 to 9
 
     zipped_ds.cache()
     zipped_ds = zipped_ds.shuffle(2000)
@@ -20,14 +22,17 @@ def preprocess(data, task):
     zipped_ds = zipped_ds.prefetch(tf.data.AUTOTUNE)
     return zipped_ds
 
+# CREATE MODEL FOR TWO TASKS
 class FFN(tf.keras.Model):
     def __init__(self, optimiser, task):
         super().__init__()
+        n_unit = 256
         self.task = task
         self.optimizer = optimiser
-        self.dense1 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
-        self.dense2 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
+        self.dense1 = tf.keras.layers.Dense(n_unit, activation=tf.nn.relu)
+        self.dense2 = tf.keras.layers.Dense(n_unit, activation=tf.nn.relu)
 
+        # SPECIFIC CONSTRUCTOR FOR SUBTASK 1 (LARGER_THAN_FIVE)
         if self.task == 'larger_than_five':
             self.metrics_list = [
                 tf.keras.metrics.BinaryAccuracy(name="accuracy"),
@@ -36,7 +41,7 @@ class FFN(tf.keras.Model):
             self.loss_function = tf.keras.losses.BinaryCrossentropy()
             self.out = tf.keras.layers.Dense(1, activation=tf.nn.sigmoid)
 
-        else:
+        else:   # SPECIFIC CONSTRUCTOR FOR SUBTASK 2 (X-Y)
             self.metrics_list = [
                 tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
                 tf.keras.metrics.Mean(name="loss")
@@ -45,8 +50,6 @@ class FFN(tf.keras.Model):
 
             self.dense3 = tf.keras.layers.Dense(16, activation=tf.nn.relu)
             self.out = tf.keras.layers.Dense(19, activation=tf.nn.softmax)
-        
-        
         
 
     @tf.function
@@ -66,10 +69,12 @@ class FFN(tf.keras.Model):
         z = self.out(tf.concat([x, y], axis=1))
         return z
 
+    # RESET ALL METRICS
     def reset_metrics(self):
         for metric in self.metrics:
             metric.reset_states()
-            
+
+    # TRAIN STEP METHOD        
     def train_step(self, data):
         img1, img2, target = data
 
@@ -82,15 +87,18 @@ class FFN(tf.keras.Model):
 
         self.metrics[0].update_state(target, prediction)
         self.metrics[1].update_state(loss)
-
+        return {m.name: m.result() for m in self.metrics_list}
+    
+    # TEST STEP METHOD        
     def test_step(self, data):
         img1, img2, target = data
         prediction = self((img1, img2), training=False)
         loss = self.loss_function(target, prediction)
         self.metrics[0].update_state(target, prediction)
         self.metrics[1].update_state(loss)
+        return {m.name: m.result() for m in self.metrics_list}
 
-
+# TRAINING LOOP
 def training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_summary_writer, save_path):
     for epoch in range(epochs):
         model.reset_metrics()
@@ -115,6 +123,7 @@ def training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_s
 
     model.save_weights(save_path)
 
+# TRAIN FUNCTION
 def train(subtask, optimiser):
     save_path = f"models/{subtask}_{optimiser}"
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -133,5 +142,27 @@ def train(subtask, optimiser):
 
     training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_summary_writer, save_path)
 
-#train('larger_than_five', tf.keras.optimizers.Adam())
-train('x-y', tf.keras.optimizers.Adam())
+# EXPERIMENTS
+
+learning_rate = 0.001
+
+# 1) SGD Optimizer (without momentum)
+momentum = 0.0
+optimiser1 = tf.keras.optimizers.experimental.SGD(learning_rate=learning_rate, momentum=momentum)
+
+# 2) Adam Optimizer
+optimiser2 = tf.keras.optimizers.Adam()
+
+# BONUS POINT
+# 3) SGD (with momentum =0.9)
+momentum = 0.9
+optimiser3 = tf.keras.optimizers.experimental.SGD(learning_rate= learning_rate, momentum=momentum)
+
+#4) RMSProp
+optimiser4 = tf.keras.optimizers.experimental.RMSprop(learning_rate=learning_rate)
+
+#5) AdaGrad
+optimiser5 = tf.keras.optimizers.experimental.Adagrad(learning_rate=learning_rate)
+
+#train('larger_than_five', optimiser1)
+train('x-y', optimiser2)
