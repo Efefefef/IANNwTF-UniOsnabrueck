@@ -1,0 +1,153 @@
+import tensorflow as tf
+import tensorflow_datasets as tfds
+import matplotlib.pyplot as plt
+import numpy as np 
+from tensorflow.keras import layers
+from tqdm import tqdm
+import datetime
+
+def load_data():
+    train_ds, test_ds = tfds.load('cifar10', split=['train', 'test'], as_supervised=True)
+    
+    return train_ds, test_ds
+
+def preprocess(ds, batch_size=32):
+    ds = ds.map(lambda image,label: ((tf.cast(image, tf.float32)/128. -1), tf.one_hot(label, 10)))
+    ds.cache()    
+    ds = ds.shuffle(2000)
+    ds = ds.batch(batch_size)
+    ds = ds.prefetch(tf.data.AUTOTUNE)
+
+    return ds
+
+def show_pic_or_didnt_happen(ds):
+    # visualize data by plotting images
+    for img1, label1 in train_ds:
+        print(img1.shape, label1.shape)
+        plt.imshow(img1)       
+        plt.show()
+        break    
+    
+
+
+class CNN(tf.keras.Model):
+    def __init__(self, optimizer, loss_function) -> None:
+        super().__init__()
+        self.conv1 = tf.keras.layers.Conv2D(
+            filters = 2, kernel_size = (3, 3), padding = 'same', 
+            strides = (1,1), activation='relu')
+
+        self.conv2 = tf.keras.layers.Conv2D(
+            filters = 2, kernel_size = (3, 3), padding = 'same', 
+            strides = (1,1), activation='relu')
+
+        self.pool1 = tf.keras.layers.MaxPool2D(
+            pool_size=(2, 2),
+            strides=(1,1),
+            padding='valid')
+
+        self.conv3 = tf.keras.layers.Conv2D(
+            filters = 2, kernel_size = (3, 3), padding = 'same', 
+            strides = (1,1), activation='relu')
+
+        self.conv4 = tf.keras.layers.Conv2D(
+            filters = 2, kernel_size = (3, 3), padding = 'same', 
+            strides = (1,1), activation='relu')
+
+        self.pool2 = tf.keras.layers.GlobalAveragePooling2D()
+
+        self.dense = tf.keras.layers.Dense(10, activation = 'relu')
+        self.out = tf.keras.layers.Dense(10, activation=tf.nn.softmax)
+
+        self.optimizer = optimizer
+        self.loss_function = loss_function
+
+        self.metrics_list = [
+                tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
+                tf.keras.metrics.Mean(name="loss")
+            ]
+
+    
+    @tf.function
+    def __call__(self, input, training = False):
+        x = self.conv1(input)
+        x = self.conv2(x)
+        x = self.pool1(x)
+        x = self.conv3(input)
+        x = self.conv4(x)
+        x = self.pool2(x)
+        x = self.dense(x)
+        x = self.out(x)
+        return x
+
+    # RESET ALL METRICS
+    def reset_metrics(self):
+        for metric in self.metrics:
+            metric.reset_states()
+
+    def train_step(self, data):
+        image, label = data
+
+        with tf.GradientTape() as tape:
+            prediction = self(image, training = True)
+            loss = self.loss_function(label, prediction)
+
+        gradients = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients,self.trainable_variables))
+        self.metrics[0].update_state(label, prediction)
+        self.metrics[1].update_state(loss)
+
+
+    def test_step(self, data):
+        image, label = data
+        prediction = self(image, training = False)
+        loss = self.loss_function(label, prediction)
+        self.metrics[0].update_state(label, prediction)
+        self.metrics[1].update_state(loss)
+
+
+def training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_summary_writer, save_path):
+    for epoch in range (epochs):
+        for data in tqdm(train_ds,position=0,leave=True):
+            model.train_step(data)
+
+        with train_summary_writer.as_default():
+            tf.summary.scalar(model.metrics[0].name, model.metrics[0].result(), step=epoch)
+            tf.summary.scalar(model.metrics[1].name, model.metrics[1].result(), step=epoch)
+        print("Epoch: ", epoch)
+        print("Loss: ", model.metrics[1].result().numpy(), "Accuracy: ", model.metrics[0].result().numpy(), "(Train)")
+        model.reset_metrics()
+
+        for data in test_ds:
+            model.test_step(data)
+
+        with test_summary_writer.as_default():
+            tf.summary.scalar(model.metrics[0].name, model.metrics[0].result(), step=epoch)
+            tf.summary.scalar(model.metrics[1].name, model.metrics[1].result(), step=epoch)
+
+        print("Loss: ", model.metrics[1].result().numpy(), "Accuracy: ", model.metrics[0].result().numpy(), "(Test)")
+    model.save_weights(save_path)
+
+
+
+
+if __name__ == '__main__':
+    train_ds,test_ds = load_data()
+    print("successfully loaded data")
+    #show_pic_or_didnt_happen(train_ds)
+    train_ds = preprocess(train_ds)
+    test_ds = preprocess(test_ds)
+
+
+    optimizer = tf.keras.optimizers.Adam()
+    loss_function = tf.keras.losses.CategoricalCrossentropy()
+    cnn = CNN(optimizer=optimizer, loss_function=loss_function)
+    epochs = 10
+
+    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    save_path = f"models/{optimizer}/{current_time}"
+    train_log_path = f"logs/{current_time}/train"
+    test_log_path = f"logs/{current_time}/test"
+    train_summary_writer = tf.summary.create_file_writer(train_log_path)
+    test_summary_writer = tf.summary.create_file_writer(test_log_path)
+    training_loop(cnn, train_ds, test_ds, epochs, train_summary_writer, test_summary_writer, save_path)
