@@ -2,7 +2,6 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 import matplotlib.pyplot as plt
 import numpy as np 
-from tensorflow.keras import layers
 from tqdm import tqdm
 import datetime
 
@@ -22,7 +21,7 @@ def preprocess(ds, batch_size=32):
 
 def show_pic_or_didnt_happen(ds):
     # visualize data by plotting images
-    for img1, label1 in train_ds:
+    for img1, label1 in ds:
         print(img1.shape, label1.shape)
         plt.imshow(img1)       
         plt.show()
@@ -73,7 +72,7 @@ class CNN(tf.keras.Model):
         x = self.conv1(input)
         x = self.conv2(x)
         x = self.pool1(x)
-        x = self.conv3(input)
+        x = self.conv3(x)
         x = self.conv4(x)
         x = self.pool2(x)
         x = self.dense(x)
@@ -108,6 +107,7 @@ class CNN(tf.keras.Model):
 
 def training_loop(model, train_ds, test_ds, epochs, train_summary_writer, test_summary_writer, save_path):
     for epoch in range (epochs):
+        model.reset_metrics()
         for data in tqdm(train_ds,position=0,leave=True):
             model.train_step(data)
 
