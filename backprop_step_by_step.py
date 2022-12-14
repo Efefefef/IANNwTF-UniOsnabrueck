@@ -21,7 +21,6 @@ def linear(x):
     return x
 
 def d_linear(x):
-    print("d linear: {}".format(np.ones_like(x)))
     return np.ones_like(x)
 
 
@@ -31,8 +30,6 @@ def mse(y, t):
     elements = 0
     y=y
     for i in range(y.shape[0]):
-        print(i, y.shape)
-        print(y[i][0])
         sum += (t[i][0] - y[i][0])**2
         elements +=1
 
@@ -98,7 +95,7 @@ class Layer:
         print("gradient_loss_over_activation: {}".format(gradient_loss_over_activation))
 
         gradient_activation_over_preactivation = d_linear(self.preactivation)
-        print("gradient_activation_over_preactivation/d_linear(preactiv): {}".format(gradient_activation_over_preactivation))
+        print("gradient_activation_over_preactivation/d_linear(preactivation): {}".format(gradient_activation_over_preactivation))
 
         gradient_preactivation_over_weights = self.input
         print("gradient_preactivation_over_weights/layer input: {}".format(gradient_preactivation_over_weights))
@@ -117,7 +114,7 @@ class Layer:
         print("gradient_loss_over_preactivation: {}".format(gradient_loss_over_preactivation))
         print("gradient_loss_over_weights: {}".format(gradient_loss_over_weights))
         print("gradient_loss_over_bias: {}".format(gradient_loss_over_bias))
-        print("gradient_loss_over_input: {}. Will be given to next layer".format(gradient_loss_over_input))
+        print("gradient_loss_over_input / ERROR SIGNAL: {}. Will be given to next layer".format(gradient_loss_over_input))
 
         
         self.weights -= gradient_loss_over_weights * learning_rate
