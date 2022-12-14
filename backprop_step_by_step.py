@@ -2,6 +2,12 @@
 
 import numpy as np
 
+def sigmoid(x):
+    return 1/(1 + np.exp(-x))
+
+def d_sigmoid(x):
+    s = sigmoid(x)
+    return s * (1 - s)
 
 # Relu activation function
 def relu(x):
@@ -11,13 +17,57 @@ def relu(x):
 def d_relu(x):
     return (x > 0) * 1
 
+def linear(x):
+    return x
+
+def d_linear(x):
+    print("d linear: {}".format(np.ones_like(x)))
+    return np.ones_like(x)
+
+
 # Mean squared error
 def mse(y, t):
+    sum = 0
+    elements = 0
+    y=y
+    for i in range(y.shape[0]):
+        print(i, y.shape)
+        print(y[i][0])
+        sum += (t[i][0] - y[i][0])**2
+        elements +=1
+
+    #doenst divide by n, returns one number
+    #print("mse: {}".format((sum)))
+    #return np.asarray([[sum]])
+
+    #if 1/n(y-t)**2 is needed, returns one number
+    #print("mse: {}".format((sum/elements)))
+    #return np.asarray([[sum/elements]])
+
+    #if we want loss for every output:
     return (y - t)**2 / 2
 
 # Derivative of the mean squared error
 def d_mse(y, t):
-    return y - t
+
+    #sum = 0
+    #elements = 0
+    #y=y.T
+    #for i in range(y.shape[1]):
+    #    sum += (y[0][i] - t[i][0])
+    #    elements +=1
+
+    #without dividing
+    #print("d_mse: {}".format((2*sum)))
+    #return np.asarray([[(2*sum)]])
+
+    # if 2/n(y-t) is needed, returns one number 
+    #print("d_mse: {}".format((2*sum/elements)))
+    #return np.asarray([[(2*sum/elements)]])
+
+    #if we want loss for every output:
+    return np.asarray(y-t)
+
 
 class Layer:
     def __init__(self, n_inputs, n_units, biases, weights):
@@ -34,7 +84,7 @@ class Layer:
         print("input: {}".format(self.input))
 
         self.preactivation = self.weights.T @ self.input + self.biases
-        self.activation = relu(self.preactivation)
+        self.activation = linear(self.preactivation)
 
         print("preactivation: {}".format(self.preactivation))
         print("activation: {}".format(self.activation))
@@ -47,8 +97,8 @@ class Layer:
         gradient_loss_over_activation = output
         print("gradient_loss_over_activation: {}".format(gradient_loss_over_activation))
 
-        gradient_activation_over_preactivation = d_relu(self.preactivation)
-        print("gradient_activation_over_preactivation/d_relu(preactiv): {}".format(gradient_activation_over_preactivation))
+        gradient_activation_over_preactivation = d_linear(self.preactivation)
+        print("gradient_activation_over_preactivation/d_linear(preactiv): {}".format(gradient_activation_over_preactivation))
 
         gradient_preactivation_over_weights = self.input
         print("gradient_preactivation_over_weights/layer input: {}".format(gradient_preactivation_over_weights))
@@ -108,21 +158,21 @@ class MLP:
 def main():
     learning_rate = 0.1
 
-    input_size = 3
-    output_size = 1 #without bias
+    input_size = 2
+    output_size = 2 #without bias
     hidden_layer1_size = 2 #without bias
 
-    weights_input = np.asarray([[1., -0.5],[0.5,-5.],[0.5,-5.]]) #layer size x next layer size 
-    weights_hidden1 = np.asarray([[-0.5],[1]]) #layer size x next layer size 
-    bias_input = np.asarray([[-2.], [6.]]) #next layer size x 1
-    bias_hidden1_units = np.asarray([[2.]]) #next layer size x 1
+    weights_input = np.asarray([[0.5, -0.5],[-1, 2.]]) #layer size x next layer size. in one bracket weights OF ONE neuron 
+    weights_hidden1 = np.asarray([[-1.,-0.5], [2, 1.]]) #layer size x next layer size 
+    bias_input = np.asarray([[0.5], [3.]]) #next layer size x 1
+    bias_hidden1_units = np.asarray([[2.],[3]]) #next layer size x 1
 
     mlp = MLP([Layer(input_size, hidden_layer1_size, bias_input, weights_input), 
                 Layer(hidden_layer1_size, output_size, bias_hidden1_units, weights_hidden1)], 
                 learning_rate)
     
-    input = [[4.],[5.],[-3.]]  #more values like [[1],[2],[3]]
-    target = [[0.2]]  #more values like [[4],[5],[6]]
+    input = [[3.],[-1.]]  #more values like [[1],[2],[3]]
+    target = [[0.],[2.]]  #more values like [[4],[5],[6]]
 
     if weights_input.shape != np.zeros((input_size,hidden_layer1_size)).shape:
         print("WRONG DIMENSIONS IN INPUT WEIGHTS")
