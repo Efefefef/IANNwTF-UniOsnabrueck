@@ -108,7 +108,10 @@ class Layer:
 
         gradient_loss_over_preactivation = gradient_activation_over_preactivation * gradient_loss_over_activation
         gradient_loss_over_weights = gradient_preactivation_over_weights @ gradient_loss_over_preactivation.T
-        gradient_loss_over_bias = gradient_preactivation_over_bias.T @ gradient_loss_over_preactivation
+        gradient_loss_over_bias = gradient_preactivation_over_bias * gradient_loss_over_preactivation
+        #just in case that makes an error
+        #gradient_loss_over_bias = gradient_preactivation_over_bias.T @ gradient_loss_over_preactivation
+
         gradient_loss_over_input = gradient_preactivation_over_input @ gradient_loss_over_preactivation
 
         print("gradient_loss_over_preactivation: {}".format(gradient_loss_over_preactivation))
